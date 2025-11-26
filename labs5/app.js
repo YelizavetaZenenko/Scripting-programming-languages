@@ -25,14 +25,14 @@ app.use(express.static(__dirname + "/public"));
 
 async function startServer() {
     try {
-        await mongoose.connect(url);  // БЕЗ ОПЦИЙ — это важно!
+        await mongoose.connect(url); 
         console.log("MongoDB connected");
 
         app.listen(3000, "0.0.0.0", () => {
-            console.log("Сервер ожидает подключения...");
+            console.log("Сервер очікує підключення...");
         });
     } catch (err) {
-        console.error("Ошибка подключения к MongoDB:", err);
+        console.error("Помилка підключення до MongoDB:", err);
         process.exit(1);
     }
 }
