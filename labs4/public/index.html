@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Список студентів</title>
+
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+
+    <style>
+        body {
+            background: #f4f6f9;
+            padding: 30px;
+            font-family: "Segoe UI", sans-serif;
+        }
+
+        h2 {
+            margin-bottom: 25px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .panel-custom {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn-primary {
+            border-radius: 4px;
+        }
+
+        table {
+            background: white;
+        }
+
+        thead {
+            background: #337ab7;
+            color: white;
+        }
+
+        tbody tr:hover {
+            background: #eef5ff;
+        }
+
+        .action-link {
+            color: #337ab7;
+            cursor: pointer;
+            margin-right: 15px;
+            font-weight: 500;
+        }
+
+        .action-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+
+</head>
+<body>
+
+<div class="container">
+
+    <h2>Список студентів</h2>
+
+    <div class="panel-custom">
+        <form name="userForm">
+            <input type="hidden" name="id" value="" />
+
+            <div class="form-group">
+                <label for="name">Ім'я:</label>
+                <input class="form-control" id="name" name="name" placeholder="Введіть ім'я" required />
+            </div>
+
+            <div class="form-group">
+                <label for="age">Вік:</label>
+                <input class="form-control" id="age" name="age" placeholder="Введіть вік" type="number" min="1" required />
+            </div>
+
+            <div class="form-group">
+                <label for="group">Група:</label>
+                <input class="form-control" id="group" name="group" placeholder="Наприклад: ІПЗ-23" required />
+            </div>
+
+            <div class="form-group">
+                <label>Джерело фінансування:</label><br>
+                <label class="radio-inline">
+                    <input type="radio" name="funding" value="Бюджет" required> Бюджет
+                </label>
+                <label class="radio-inline">
+                    <input type="radio" name="funding" value="Контракт" required> Контракт
+                </label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Зберегти</button>
+            <a id="reset" class="btn btn-default">Очистити</a>
+        </form>
+    </div>
+
+    <br>
+
+    <table class="table table-condensed table-striped table-bordered">
+        <thead>
+        <tr>
+            <th>Id</th>
+            <th>Ім'я</th>
+            <th>Вік</th>
+            <th>Група</th>
+            <th>Фінансування</th>
+            <th style="width:180px;">Дії</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+</div>
+
+<script>
+    async function GetUsers() {
+        const response = await fetch("/api/student");
+        if (response.ok) {
+            const users = await response.json();
+            document.querySelector("tbody").innerHTML = "";
+            users.forEach(u => document.querySelector("tbody").append(row(u)));
+        }
+    }
+
+    async function GetUser(id) {
+        const res = await fetch("/api/student/" + id);
+        if (res.ok) {
+            const user = await res.json();
+            const f = document.forms["userForm"];
+            f.elements["id"].value = user._id;
+            f.elements["name"].value = user.name;
+            f.elements["age"].value = user.age;
+            f.elements["group"].value = user.group;
+
+            if (user.funding === "budget")
+                f.elements["funding"][0].checked = true;
+            else if (user.funding === "contract")
+                f.elements["funding"][1].checked = true;
+        }
+    }
+
+    async function CreateUser(name, age, group, funding) {
+        const res = await fetch("/api/student", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, age: parseInt(age), group, funding })
+        });
+        if (res.ok) {
+            const user = await res.json();
+            reset();
+            document.querySelector("tbody").append(row(user));
+        }
+    }
+
+    async function EditUser(id, name, age, group, funding) {
+        const res = await fetch("/api/student", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, name, age: parseInt(age), group, funding })
+        });
+        if (res.ok) {
+            const user = await res.json();
+            reset();
+            document.querySelector(`tr[data-rowid="${user._id}"]`).replaceWith(row(user));
+        }
+    }
+
+
+    async function DeleteUser(id) {
+        const res = await fetch("/api/student/" + id, { method: "DELETE" });
+        if (res.ok) {
+            const user = await res.json();
+            document.querySelector(`tr[data-rowid="${user._id}"]`).remove();
+        }
+        location.reload();
+    }
+
+    function reset() {
+        const form = document.forms["userForm"];
+        form.reset();
+        form.elements["id"].value = "";
+    }
+
+    function row(user) {
+        const tr = document.createElement("tr");
+        tr.dataset.rowid = user._id;
+
+        tr.innerHTML = `
+            <td>${user._id}</td>
+            <td>${user.name}</td>
+            <td>${user.age}</td>
+            <td>${user.group}</td>
+            <td>${user.funding || "-"}</td>
+        <td>
+        <span class="action-link" onclick="GetUser('${user._id}')">Редагувати</span>
+        <span class="action-link" onclick="DeleteUser('${user._id}')">Видалити</span>
+        </td>
+        `;
+
+        return tr;
+    }
+
+    document.getElementById("reset").addEventListener("click", e => {
+        e.preventDefault();
+        reset();
+    });
+
+    document.forms["userForm"].addEventListener("submit", e => {
+        e.preventDefault();
+        const f = document.forms["userForm"];
+        const id = f.elements["id"].value;
+        const name = f.elements["name"].value;
+        const age = f.elements["age"].value;
+        const group = f.elements["group"].value;
+        const funding = document.querySelector("input[name='funding']:checked")?.value || "";
+
+        if (!id)
+            CreateUser(name, age, group, funding);
+        else
+            EditUser(id, name, age, group, funding);
+    });
+
+
+    GetUsers();
+</script>
+
+</body>
+</html>
